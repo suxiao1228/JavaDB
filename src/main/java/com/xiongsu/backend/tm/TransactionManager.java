@@ -13,13 +13,13 @@ import java.nio.channels.FileChannel;
 
 
 public interface TransactionManager {
-    long begin();
-    void commit(long xid);
-    void abort(long xid);
-    boolean isActive(long xid);
-    boolean isCommited(long xid);
-    boolean isAborted(long xid);
-    void close();
+    long begin();// 开启一个新事务
+    void commit(long xid);// 提交一个事务
+    void abort(long xid);// 取消一个事务
+    boolean isActive(long xid);// 查询一个事务的状态是否是正在进行的状态
+    boolean isCommited(long xid);// 查询一个事务的状态是否是已提交
+    boolean isAborted(long xid);// 查询一个事务的状态是否是已取消
+    void close();// 关闭TM
 
     //create 用于从零开始，open 用于从持久化的状态恢复
 
