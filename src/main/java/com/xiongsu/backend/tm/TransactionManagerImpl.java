@@ -74,51 +74,73 @@ public class TransactionManagerImpl implements TransactionManager{
         return LEN_XID_HEADER_LENGTE + (xid-1)*XID_FIELD_SIZE;
     }
 
-    //开始一个事务，并返回XID
+    // 开始一个事务，并返回XID
     public long begin() {
+        // 锁定计数器，防止并发问题
         counterLock.lock();
         try {
+            // xidCounter是当前事务的计数器，每开始一个新的事务，就将其加1
             long xid = xidCounter + 1;
+            // 调用updateXID方法，将新的事务ID和事务状态（这里是活动状态）写入到XID文件中
             updateXID(xid, FIELD_TRAN_ACTIVE);
+            // 调用incrXIDCounter方法，将事务计数器加1，并更新XID文件的头部信息
             incrXIDCounter();
+            // 返回新的事务ID
             return xid;
         } finally {
+            // 释放锁
             counterLock.unlock();
         }
     }
 
-    //更新xid事务的状态为status;
+    // 更新xid事务的状态为status
     private void updateXID(long xid, byte status) {
+        //获取事务xid在xid文件中对应的位置
         long offset = getXidPosition(xid);
+        //创建一个长度为XID_FIELD_SIZE的字节数组
         byte[] tmp = new byte[XID_FIELD_SIZE];
+        //将事务状态设置为status
         tmp[0] = status;
+        //使用字节数组创建一个ByteBuffer
         ByteBuffer buf = ByteBuffer.wrap(tmp);
-        try{
+        try {
+            //将文件通道的位置设置为offset
             fc.position(offset);
+            //将ByteBuffer中的数据写入到文件通道
             fc.write(buf);
         } catch (IOException e) {
+            //如果出现异常，调用Panic.panic方法处理
             Panic.panic(e);
         }
         try {
+            //强制将文件通道中的所有未写入的数据写入到磁盘
             fc.force(false);
         } catch (IOException e) {
+            //如果出现异常，调用Panic.panic方法处理
             Panic.panic(e);
         }
     }
 
-    //将XID加1，并更新XID Header
+    // 将XID加一，并更新XID Header
     private void incrXIDCounter() {
+        // 事务总数加一
         xidCounter ++;
+        // 将新的事务总数转换为字节数组，并用ByteBuffer包装
         ByteBuffer buf = ByteBuffer.wrap(Parser.long2Byte(xidCounter));
         try {
+            // 将文件通道的位置设置为0，即文件的开始位置
             fc.position(0);
+            // 将ByteBuffer中的数据写入到文件通道，即更新了XID文件的头部信息
             fc.write(buf);
-        }catch (IOException e) {
+        } catch (IOException e) {
+            // 如果出现异常，调用Panic.panic方法处理
             Panic.panic(e);
         }
         try {
+            // 强制将文件通道中的所有未写入的数据写入到磁盘
             fc.force(false);
-        }catch (IOException e) {
+        } catch (IOException e) {
+            // 如果出现异常，调用Panic.panic方法处理
             Panic.panic(e);
         }
     }
@@ -148,16 +170,23 @@ public class TransactionManagerImpl implements TransactionManager{
         return checkXID(xid, FIELD_TRAN_ABORTED);
     }
 
-    //检测XID事务是否处于status状态
+    // 检测XID事务是否处于status状态
     private boolean checkXID(long xid, byte status) {
+        // 计算事务ID在XID文件中的位置
         long offset = getXidPosition(xid);
+        // 创建一个新的字节缓冲区（ByteBuffer），长度为XID_FIELD_SIZE
         ByteBuffer buf = ByteBuffer.wrap(new byte[XID_FIELD_SIZE]);
         try {
+            // 将文件通道的位置设置为offset
             fc.position(offset);
+            // 从文件通道读取数据到字节缓冲区
             fc.read(buf);
         } catch (IOException e) {
+            // 如果出现异常，调用Panic.panic方法处理
             Panic.panic(e);
         }
+        // 检查字节缓冲区的第一个字节是否等于给定的状态
+        // 如果等于，返回true，否则返回false
         return buf.array()[0] == status;
     }
 
