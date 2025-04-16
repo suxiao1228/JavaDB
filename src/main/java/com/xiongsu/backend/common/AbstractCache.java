@@ -46,7 +46,7 @@ public abstract class AbstractCache<T> {
             }
             if (cache.containsKey(key)) {
                 //资源在缓存中，直接返回，并增加引用计数
-                T obj = cahce.get(key);
+                T obj = cache.get(key);
                 references.put(key, references.get(key)+1);
                 lock.unlock();
                 return obj;
