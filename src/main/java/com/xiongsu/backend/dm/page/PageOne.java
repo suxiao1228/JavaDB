@@ -22,6 +22,8 @@ public class PageOne {
         return raw;
     }
 
+    //数据库启动时，调用
+    //这个方法会生成 LEN_VC (8) 个随机字节，将这 8 个随机字节写入到第一页的 "Open Slot" (字节 100-107)。
     public static void setVcOpen(Page pg) {
         pg.setDirty(true);
         setVcOpen(pg.getData());
@@ -31,6 +33,11 @@ public class PageOne {
         System.arraycopy(RandomUtil.randomBytes(LEN_VC), 0, raw, OF_VC, LEN_VC);
     }
 
+    //当数据库准备正常关闭时，会调用 setVcClose 方法。
+    //这个方法比较 "Open Slot" (100-107) 和 "Close Slot" (108-115) 这两个区域的字节内容。
+
+    //如果两者内容完全相同： 这意味着上一次关闭时 setVcClose 成功执行并且其修改已持久化到磁盘。因此，数据库上次是正常关闭的。checkVc 返回 true。
+    //如果两者内容不相同： 这意味着上一次关闭时，setVcClose 没有被执行，或者执行了但对应的页面修改没有成功写回磁盘（比如发生了崩溃）。因此，数据库上次是异常关闭的。checkVc 返回 false。
     public static void setVcClose(Page pg) {
         pg.setDirty(true);
         setVcClose(pg.getData());
