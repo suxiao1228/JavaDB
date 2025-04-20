@@ -41,10 +41,10 @@ public interface Logger {
             Panic.panic(e);
         }
 
-        ByteBuffer buf = ByteBuffer.wrap(Parser.int2Byte(0));
+        ByteBuffer buf = ByteBuffer.wrap(Parser.int2Byte(0));//将0转换为四字节的数字
         try {
             fc.position(0);
-            fc.write(buf);
+            fc.write(buf);//将其写入到文件
             fc.force(false);
         } catch (IOException e) {
             Panic.panic(e);
