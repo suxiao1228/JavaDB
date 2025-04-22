@@ -2,6 +2,7 @@ package com.xiongsu.backend.dm;
 
 import com.google.common.primitives.Bytes;
 import com.xiongsu.backend.common.SubArray;
+import com.xiongsu.backend.dm.dataltem.DataItem;
 import com.xiongsu.backend.dm.logger.Logger;
 import com.xiongsu.backend.dm.page.Page;
 import com.xiongsu.backend.dm.page.PageX;
@@ -20,7 +21,7 @@ public class Recover {
     // updateLog:
     // [LogType] [XID] [UID] [OldRaw] [NewRaw]
 
-    // insertLog:
+    // insertLog:lll
     // [LogType] [XID] [Pgno] [Offset] [Raw]
 
     private static final int REDO = 0;
