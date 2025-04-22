@@ -178,14 +178,21 @@ public class Recover {
     private static final int OF_UPDATE_UID = OF_XID+8;
     private static final int OF_UPDATE_RAW = OF_UPDATE_UID+8;
 
+    /**
+     * 创建一个更新日志。
+     *
+     * @param xid 事务ID
+     * @param di  DataItem对象
+     * @return 更新日志，包含日志类型、事务ID、DataItem的唯一标识符、旧原始数据和新原始数据
+     */
     public static byte[] updateLog(long xid, DataItem di) {
-        byte[] logType = {LOG_TYPE_UPDATE};
-        byte[] xidRaw = Parser.long2Byte(xid);
-        byte[] uidRaw = Parser.long2Byte(di.getUid());
-        byte[] oldRaw = di.getOldRaw();
-        SubArray raw = di.getRaw();
-        byte[] newRaw = Arrays.copyOfRange(raw.raw, raw.start, raw.end);
-        return Bytes.concat(logType, xidRaw, uidRaw, oldRaw, newRaw);
+        byte[] logType = {LOG_TYPE_UPDATE}; // 创建一个表示日志类型的字节数组，并设置其值为LOG_TYPE_UPDATE
+        byte[] xidRaw = Parser.long2Byte(xid); // 将事务ID转换为字节数组
+        byte[] uidRaw = Parser.long2Byte(di.getUid()); // 将DataItem对象的唯一标识符转换为字节数组
+        byte[] oldRaw = di.getOldRaw(); // 获取DataItem对象的旧原始数据
+        SubArray raw = di.getRaw(); // 获取DataItem对象的新原始数据
+        byte[] newRaw = Arrays.copyOfRange(raw.raw, raw.start, raw.end); // 将新原始数据转换为字节数组
+        return Bytes.concat(logType, xidRaw, uidRaw, oldRaw, newRaw); // 将所有字节数组连接在一起，形成一个完整的更新日志，并返回这个日志
     }
 
     private static UpdateLogInfo parseUpdateLog(byte[] log) {
@@ -242,11 +249,17 @@ public class Recover {
     private static final int OF_INSERT_OFFSET = OF_INSERT_PGNO+4;
     private static final int OF_INSERT_RAW = OF_INSERT_OFFSET+2;
 
+    //定义一个静态方法，用于创建日志
     public static byte[] insertLog(long xid, Page pg, byte[] raw) {
+        //创建一个表示日志类型的字节数组，并设置其值为LOG_TYPE_INSERT
         byte[] logTypeRaw = {LOG_TYPE_INSERT};
+        //将事务ID转换为字节数组
         byte[] xidRaw = Parser.long2Byte(xid);
+        //将页面编号转换为字节数组
         byte[] pgnoRaw = Parser.int2Byte(pg.getPageNumber());
+        // 获取页面的第一个空闲空间的偏移量，并将其转换为字节数组
         byte[] offsetRaw = Parser.short2Byte(PageX.getFSO(pg));
+        // 将所有字节数组连接在一起，形成一个完整的插入日志，并返回这个日志
         return Bytes.concat(logTypeRaw, xidRaw, pgnoRaw, offsetRaw, raw);
     }
 

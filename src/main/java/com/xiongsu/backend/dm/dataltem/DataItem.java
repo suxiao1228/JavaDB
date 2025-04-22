@@ -27,10 +27,19 @@ public interface DataItem {
     byte[] getOldRaw();
     SubArray getRaw();
 
+    /**
+     *  返回一个完整的 DataItem 结构数据
+     *  dataItem 结构如下：
+     *  [ValidFlag] [DataSize] [Data]
+     *  ValidFlag 1字节，0为合法，1为非法
+     *  DataSize  2字节，标识Data的长度
+     * @param raw
+     * @return
+     */
     public static byte[] wrapDataItemRaw(byte[] raw) {
-        byte[] valid = new byte[1];
-        byte[] size = Parser.short2Byte((short)raw.length);
-        return Bytes.concat(valid, size, raw);
+        byte[] valid = new byte[1];//证明此时为非法数据
+        byte[] size = Parser.short2Byte((short)raw.length);//计算数据字节大小
+        return Bytes.concat(valid, size, raw);//拼接DataItem结构数据
     }
 
     //从页面的offset出解析出dataitem

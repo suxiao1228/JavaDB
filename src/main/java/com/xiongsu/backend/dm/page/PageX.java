@@ -38,11 +38,11 @@ public class PageX {
 
     //将raw插入pg中， 返回插入位置
     public static short insert(Page pg, byte[] raw) {
-        pg.setDirty(true);
-        short offset = getFSO(pg.getData());
-        System.arraycopy(raw, 0, pg.getData(), offset, raw.length);
-        setFSO(pg.getData(), (short)(offset + raw.length));
-        return offset;
+        pg.setDirty(true);// 将pg的dirty标志设置为true，表示pg的数据已经被修改
+        short offset = getFSO(pg.getData());// 获取pg的空闲空间偏移量
+        System.arraycopy(raw, 0, pg.getData(), offset, raw.length);// 将raw的数据复制到pg的数据中的offset位置
+        setFSO(pg.getData(), (short)(offset + raw.length));// 更新pg的空闲空间偏移量
+        return offset;// 返回插入位置
     }
 
     //获取页面的空闲时间大小

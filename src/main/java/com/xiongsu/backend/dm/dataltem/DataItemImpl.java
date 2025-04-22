@@ -20,13 +20,13 @@ public class DataItemImpl implements DataItem{
     static final int OF_SIZE = 1;
     static final int OF_DATA = 3;
 
-    private SubArray raw;
-    private byte[] oldRaw;
+    private SubArray raw;//原始数据
+    private byte[] oldRaw;//旧的原始数据
     private Lock rLock;
     private Lock wLock;
-    private DataManagerImpl dm;
-    private long uid;
-    private Page pg;
+    private DataManagerImpl dm;//数据管理器
+    private long uid;//唯一标识符
+    private Page pg;//页面对象
 
     public DataItemImpl(SubArray raw, byte[] oldRaw, Page pg, long uid, DataManagerImpl dm) {
         this.raw = raw;
@@ -45,6 +45,7 @@ public class DataItemImpl implements DataItem{
 
     @Override
     public SubArray data() {
+        //返回[data]部分
         return new SubArray(raw.raw, raw.start+OF_DATA, raw.end);
     }
 
@@ -52,6 +53,7 @@ public class DataItemImpl implements DataItem{
     public void before() {
         wLock.lock();
         pg.setDirty(true);
+        //保存原始数据的副本，以便在需要时进行回滚
         System.arraycopy(raw.raw, raw.start, oldRaw, 0, oldRaw.length);
     }
 
