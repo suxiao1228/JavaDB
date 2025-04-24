@@ -11,7 +11,7 @@ import java.nio.channels.FileChannel;
 
 public interface PageCache {
 
-    public static final int PAGE_SIZE = 1 << 13;
+    public static final int PAGE_SIZE = 1 << 13;//8192字节，也就是8KB
 
     int newPage(byte[] initData);
     Page getPage(int pgno) throws Exception;
