@@ -1,5 +1,7 @@
 package com.xiongsu.backend.vm;
 
+import com.xiongsu.common.Error;
+
 import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -34,7 +36,7 @@ public class LockTable {
                 return null;
             }
             if (!u2x.containsKey(uid)) {
-                x2u.put(uid, xid);
+                x2u.put(uid, Collections.singletonList(xid));
                 putIntoList(x2u, xid, uid);
                 return null;
             }

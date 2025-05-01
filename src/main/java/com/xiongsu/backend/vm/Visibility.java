@@ -19,7 +19,7 @@ public class Visibility {
         if (t.level == 0) {
             return readCommitted(tm, t, e);
         } else {
-            return RepeatableRead(tm, t, e);
+            return repeatableRead(tm, t, e);
         }
     }
 
