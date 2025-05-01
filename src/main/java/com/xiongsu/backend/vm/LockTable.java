@@ -1,8 +1,6 @@
 package com.xiongsu.backend.vm;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -133,4 +131,39 @@ public class LockTable {
         return dfs(x);
     }
 
+    private void removeFromList(Map<Long, List<Long>> listMap, long uid0, long uid1) {
+        List<Long> l = listMap.get(uid0);
+        if (l == null) return;
+        Iterator<Long> i = l.iterator();
+        while (i.hasNext()) {
+            long e = i.next();
+            if (e == uid1) {
+                i.remove();
+                break;
+            }
+        }
+        if (l.size() == 0) {
+            listMap.remove(uid0);
+        }
+    }
+
+    private void putIntoList(Map<Long, List<Long>> listMap, long uid0, long uid1) {
+        if (!listMap.containsKey(uid0)) {
+            listMap.put(uid0, new ArrayList<>());
+        }
+        listMap.get(uid0).add(0, uid1);
+    }
+
+    private boolean isInList(Map<Long, List<Long>> listMap, long uid0, long uid1) {
+        List<Long> l = listMap.get(uid0);
+        if (l == null) return false;
+        Iterator<Long> i = l.iterator();
+        while (i.hasNext()) {
+            long e = i.next();
+            if (e == uid1) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
