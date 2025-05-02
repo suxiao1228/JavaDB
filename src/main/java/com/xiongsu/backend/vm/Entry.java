@@ -14,18 +14,17 @@ import java.util.Arrays;
  * entry结构：
  * [XMIN] [XMAX] [data]
  */
-    //XMIN:创建该条记录（版本）的事务编号
-    //XMAX:删除该条记录（版本）的事务编号
-    //DATA:是这条记录持有的数据
+//XMIN:创建该条记录（版本）的事务编号
+//XMAX:删除该条记录（版本）的事务编号
+//DATA:是这条记录持有的数据
 public class Entry {
-    //定义了XMIN的偏移量为0
-    private static final int OF_XMIN = 0;
-    private static final int OF_XMAX = OF_XMIN+8;
-    private static final int OF_DATA = OF_XMAX+8;
+    private static final int OF_XMIN = 0;//定义了XMIN的偏移量为0
+    private static final int OF_XMAX = OF_XMIN+8;// 定义了XMAX的偏移量为XMIN偏移量后的8个字节
+    private static final int OF_DATA = OF_XMAX+8;// 定义了DATA的偏移量为XMAX偏移量后的8个字节
 
-    private long uid;
-    private DataItem dataItem;
-    private VersionManager vm;
+    private long uid;//uid字段，用来唯一标识一个Entry的
+    private DataItem dataItem;//DataItem对象，用来存储数据
+    private VersionManager vm;// VersionManager对象，用来管理版本的
 
     public static Entry newEntry(VersionManager vm, DataItem dataItem, long uid) {
         if (dataItem == null) {
@@ -40,7 +39,7 @@ public class Entry {
 
     //静态方法，用来加载一个Entry.它首先从VersionManager中读取数据，然后创建一个新的Entry
     public static Entry loadEntry(VersionManager vm, long uid) throws Exception {
-        DataItemImpl di = ((VersionManagerImpl)vm).dm.read(uid);
+        DataItem di = ((VersionManagerImpl)vm).dm.read(uid);
         return newEntry(vm, di, uid);
     }
 
@@ -51,9 +50,9 @@ public class Entry {
      * @return
      */
     public static byte[] wrapEntryRaw(long xid, byte[] data) {
-        byte[] xmin = Parser.long2Byte(xid);
-        byte[] xmax = new byte[8];
-        return Bytes.concat(xmin, xmax, data);
+        byte[] xmin = Parser.long2Byte(xid);// 将事务id转为8字节数组
+        byte[] xmax = new byte[8];// 创建一个空的8字节数组，等待版本修改或删除是才修改
+        return Bytes.concat(xmin, xmax, data);// 拼接成日志格式
     }
 
     public void release() {
@@ -71,14 +70,14 @@ public class Entry {
      */
     //以拷贝的形式返回内容
     public byte[] data() {
-        dataItem.rLock();
+        dataItem.rLock();// 加锁，确保数据安全
         try {
-            SubArray sa = dataItem.data();
-            byte[] data = new byte[sa.end - sa.start - OF_DATA];
-            System.arraycopy(sa.raw, sa.start+OF_DATA, data, 0, data.length);
+            SubArray sa = dataItem.data();// 获取日志数据
+            byte[] data = new byte[sa.end - sa.start - OF_DATA];// 创建一个去除前16字节的数组，因为前16字节表示 xmin and xmax
+            System.arraycopy(sa.raw, sa.start+OF_DATA, data, 0, data.length);// 拷贝数据到data数组上
             return data;
         } finally {
-            dataItem.rUnLock();
+            dataItem.rUnLock();//释放锁
         }
     }
 
@@ -107,12 +106,12 @@ public class Entry {
      * @param xid
      */
     public void setXmax(long xid) {
-        dataItem.before();
+        dataItem.before();// 在修改或删除之前先拷贝好旧数值
         try {
-            SubArray sa = dataItem.data();
-            System.arraycopy(Parser.long2Byte(xid), 0, sa.raw, sa.start+OF_XMAX, 8);
+            SubArray sa = dataItem.data();// 获取需要删除的日志数据
+            System.arraycopy(Parser.long2Byte(xid), 0, sa.raw, sa.start+OF_XMAX, 8);// 将事务编号拷贝到 8~15 处字节
         } finally {
-            dataItem.after(xid);
+            dataItem.after(xid);// 生成一个修改日志
         }
     }
 
