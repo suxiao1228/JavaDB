@@ -14,12 +14,12 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class TableManagerImpl implements TableManager{
-    VersionManager vm;
-    DataManager dm;
-    private Booter booter;
-    private Map<String, Table> tableCache;
-    private Map<Long, List<Table>> xidTableCache;
-    private Lock lock;
+    VersionManager vm; // 版本管理器，用于管理事务的版本
+    DataManager dm;// 数据管理器，用于管理数据的存储和读取
+    private Booter booter;// 启动信息管理器，用于管理数据库启动信息
+    private Map<String, Table> tableCache;// 表缓存，用于缓存已加载的表，键是表名，值是表对象
+    private Map<Long, List<Table>> xidTableCache;// 事务表缓存，用于缓存每个事务修改过的表，键是事务ID，值是表对象列表
+    private Lock lock;// 锁，用于同步多线程操作
 
     TableManagerImpl(VersionManager vm, DataManager dm, Booter booter) {
         this.vm = vm;
@@ -31,15 +31,22 @@ public class TableManagerImpl implements TableManager{
         loadTables();
     }
 
+    /**
+     * 加载所有的数据库表
+     */
     private void loadTables() {
-        long uid = firstTableUid();
-        while(uid != 0) {
-            Table tb = Table.loadTable(this, uid);
-            uid = tb.nextUid;
-            tableCache.put(tb.name, tb);
+        long uid = firstTableUid();// 获取第一个表的UID
+        while(uid != 0) {// 当UID不为0时，表示还有表需要加载
+            Table tb = Table.loadTable(this, uid);// 加载表，并获取表的UID
+            uid = tb.nextUid;// 更新UID为下一个表的UID
+            tableCache.put(tb.name, tb);// 将加载的表添加到表缓存中
         }
     }
 
+    /**
+     * 获取Botter文件的前八位字节
+     * @return
+     */
     private long firstTableUid() {
         byte[] raw = booter.load();
         return Parser.parseLong(raw);
@@ -90,21 +97,22 @@ public class TableManagerImpl implements TableManager{
     }
     @Override
     public byte[] create(long xid, Create create) throws Exception {
-        lock.lock();
+        lock.lock();//加锁
         try {
+            // 检查表是否已存在，如果存在则抛出异常
             if(tableCache.containsKey(create.tableName)) {
                 throw Error.DuplicatedTableException;
             }
-            Table table = Table.createTable(this, firstTableUid(), xid, create);
-            updateFirstTableUid(table.uid);
-            tableCache.put(create.tableName, table);
-            if(!xidTableCache.containsKey(xid)) {
+            Table table = Table.createTable(this, firstTableUid(), xid, create);// 创建新的表，并获取表的UID
+            updateFirstTableUid(table.uid);// 更新第一个表的UID
+            tableCache.put(create.tableName, table);// 将新创建的表添加到表缓存中
+            if(!xidTableCache.containsKey(xid)) {// 如果事务表缓存中没有当前事务ID的条目，则添加一个新的条目
                 xidTableCache.put(xid, new ArrayList<>());
             }
-            xidTableCache.get(xid).add(table);
-            return ("create " + create.tableName).getBytes();
+            xidTableCache.get(xid).add(table);// 将新创建的表添加到当前事务的表列表中
+            return ("create " + create.tableName).getBytes();// 返回创建成功的消息
         } finally {
-            lock.unlock();
+            lock.unlock();//解锁
         }
     }
     @Override

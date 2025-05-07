@@ -17,30 +17,42 @@ import java.util.*;
  * [Field1Uid] [Field2Uid]...[FieldNUid]
  */
 public class Table {
-    TableManager tbm;
-    long uid;
-    String name;
-    byte status;
-    long nextUid;
-    List<Field> fields = new ArrayList<>();
+    TableManager tbm;// 表管理器，用于管理数据库表
+    long uid;// 表的唯一标识符
+    String name;// 表的名称
+    byte status;// 表的状态
+    long nextUid;// 下一个表的唯一标识符
+    List<Field> fields = new ArrayList<>();// 表的字段列表
 
+    //这个静态方法用于从数据库中加载一个表
     public static Table loadTable(TableManager tbm, long uid) {
-        byte[] raw = null;
+        byte[] raw = null;// 初始化一个字节数组用于存储从数据库中读取的原始数据
         try {
-            raw = ((TableManagerImpl)tbm).vm.read(TransactionManagerImpl.SUPER_XID, uid);
+            raw = ((TableManagerImpl)tbm).vm.read(TransactionManagerImpl.SUPER_XID, uid);// 使用表管理器的版本管理器从数据库中读取指定uid的表的原始数据
         } catch (Exception e) {
-            Panic.panic(e);
+            Panic.panic(e);// 如果在读取过程中发生异常，调用Panic.panic方法处理异常
         }
-        assert raw != null;
-        Table tb = new Table(tbm, uid);
-        return tb.parseSelf(raw);
+        assert raw != null;// 断言原始数据不为空
+        Table tb = new Table(tbm, uid);// 创建一个新的表对象
+        return tb.parseSelf(raw);// 使用原始数据解析表对象，并返回这个表对象
     }
 
+    /**
+     * 创建一个新的数据库表
+     * @param tbm        表管理器，用于管理数据库表
+     * @param nextUid    下一个表的唯一标识符
+     * @param xid        事务ID
+     * @param create     创建表的语句
+     * @return           创建的表
+     * @throws Exception
+     */
     public static Table createTable(TableManager tbm, long nextUid, long xid, Create create) throws Exception {
-        Table tb = new Table(tbm, create.tableName, nextUid);
-        for(int i = 0; i < create.fieldName.length; i ++) {
+        Table tb = new Table(tbm, create.tableName, nextUid); // 创建一个新的表的对象
+        for(int i = 0; i < create.fieldName.length; i ++) {// 遍历创建表语句中的所有字段
+            //获取字段名和字段类型
             String fieldName = create.fieldName[i];
             String fieldType = create.fieldType[i];
+            //判断该字段是否需要建立索引
             boolean indexed = false;
             for(int j = 0; j < create.index.length; j ++) {
                 if(fieldName.equals(create.index[j])) {
@@ -48,10 +60,10 @@ public class Table {
                     break;
                 }
             }
-            tb.fields.add(Field.createField(tb, xid, fieldName, fieldType, indexed));
+            tb.fields.add(Field.createField(tb, xid, fieldName, fieldType, indexed));// 创建一个新的字段对象，并添加到表对象中
         }
 
-        return tb.persistSelf(xid);
+        return tb.persistSelf(xid);// 将表对象的状态持久化到存储系统中，并返回表对象
     }
 
     public Table(TableManager tbm, long uid) {
@@ -65,31 +77,40 @@ public class Table {
         this.nextUid = nextUid;
     }
 
+    //这个方法用于解析表对象
+    // [TableName] [NextTable] [Field1Uid][Field2Uid]...[FieldNUid]
     private Table parseSelf(byte[] raw) {
-        int position = 0;
-        ParseStringRes res = Parser.parseString(raw);
-        name = res.str;
-        position += res.next;
-        nextUid = Parser.parseLong(Arrays.copyOfRange(raw, position, position+8));
-        position += 8;
+        int position = 0;// 初始化位置变量
+        ParseStringRes res = Parser.parseString(raw);// 使用Parser.parseString方法解析原始数据中的字符串
+        name = res.str;// 将解析出的字符串赋值给表的名称
+        position += res.next;// 更新位置变量
+        nextUid = Parser.parseLong(Arrays.copyOfRange(raw, position, position+8));// 使用Parser.parseLong方法解析原始数据中的长整数，并赋值给下一个uid
+        position += 8;// 更新位置变量
 
+        // 当位置变量小于原始数据的长度时，继续循环
         while(position < raw.length) {
-            long uid = Parser.parseLong(Arrays.copyOfRange(raw, position, position+8));
-            position += 8;
-            fields.add(Field.loadField((com.google.common.collect.Table) this, uid));
+            long uid = Parser.parseLong(Arrays.copyOfRange(raw, position, position+8));// 使用Parser.parseLong方法解析原始数据中的长整数，并赋值给uid
+            position += 8;// 更新位置变量
+            fields.add(Field.loadField((Table) this, uid));// 使用Field.loadField方法加载字段，并添加到表的字段列表中
         }
-        return this;
+        return this;// 返回当前表对象
     }
 
+    /**
+     * 将Table对象的状态持久化到存储系统中， [TableName] [NextTable] [Field1Uid][Field2Uid]...[FieldNUid]
+     * @param xid 事务ID
+     * @return 当前Table对象
+     * @throws Exception
+     */
     private Table persistSelf(long xid) throws Exception {
-        byte[] nameRaw = Parser.string2Byte(name);
-        byte[] nextRaw = Parser.long2Byte(nextUid);
-        byte[] fieldRaw = new byte[0];
-        for(Field field : fields) {
-            fieldRaw = Bytes.concat(fieldRaw, Parser.long2Byte(field.uid));
+        byte[] nameRaw = Parser.string2Byte(name);// 将表名转换为字节数组
+        byte[] nextRaw = Parser.long2Byte(nextUid);// 将下一个uid转换为字节数组
+        byte[] fieldRaw = new byte[0];// 创建一个空的字节数组，用于存储字段的uid
+        for(Field field : fields) {// 遍历所有的字段
+            fieldRaw = Bytes.concat(fieldRaw, Parser.long2Byte(field.uid));// 将字段的uid转换为字节数组，并添加到fieldRaw中
         }
-        uid = ((TableManagerImpl)tbm).vm.insert(xid, Bytes.concat(nameRaw, nextRaw, fieldRaw));
-        return this;
+        uid = ((TableManagerImpl)tbm).vm.insert(xid, Bytes.concat(nameRaw, nextRaw, fieldRaw));// 将表名、下一个uid和所有字段的uid插入到存储系统中，返回插入的uid
+        return this;// 返回当前Table对象
     }
 
     public int delete(long xid, Delete delete) throws Exception {
@@ -175,23 +196,36 @@ public class Table {
         return entry;
     }
 
+    /**
+     * 解析WHERE 子句并返回满足条件的记录的uid列表
+     * @param where
+     * @return
+     * @throws Exception
+     */
     private List<Long> parseWhere(Where where) throws Exception {
+        // 初始化搜索范围和标志位
         long l0=0, r0=0, l1=0, r1=0;
         boolean single = false;
         Field fd = null;
+        // 如果 WHERE 子句为空，则搜索所有记录
         if(where == null) {
+            // 寻找第一个有索引的字段
             for (Field field : fields) {
                 if(field.isIndexed()) {
                     fd = field;
                     break;
                 }
             }
+            // 设置搜索范围为整个 uid 空间
             l0 = 0;
             r0 = Long.MAX_VALUE;
             single = true;
         } else {
+            // 如果 WHERE 子句不为空，则根据 WHERE 子句解析搜索范围
+            // 寻找 WHERE 子句中涉及的字段
             for (Field field : fields) {
                 if(field.fieldName.equals(where.singleExp1.field)) {
+                    // 如果字段没有索引，则抛出异常
                     if(!field.isIndexed()) {
                         throw Error.FieldNotIndexedException;
                     }
@@ -199,20 +233,24 @@ public class Table {
                     break;
                 }
             }
+            // 如果字段不存在，则抛出异常
             if(fd == null) {
                 throw Error.FieldNotFoundException;
             }
+            // 计算 WHERE 子句的搜索范围
             CalWhereRes res = calWhere(fd, where);
             l0 = res.l0; r0 = res.r0;
             l1 = res.l1; r1 = res.r1;
             single = res.single;
         }
+        // 在计算出的搜索范围内搜索记录
         List<Long> uids = fd.search(l0, r0);
+        // 如果 WHERE 子句包含 OR 运算符，则需要搜索两个范围，并将结果合并
         if(!single) {
             List<Long> tmp = fd.search(l1, r1);
             uids.addAll(tmp);
         }
-        return uids;
+        return uids;// 返回搜索结果
     }
 
     class CalWhereRes {

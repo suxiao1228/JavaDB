@@ -6,15 +6,25 @@ import com.xiongsu.common.Error;
 import java.util.ArrayList;
 import java.util.List;
 
+//Parser类实现了对类SQL语句的结构化解析，将语句中包含的信息封装为对应语句的类
+//过程
+//Parser类直接对外提供了Parse(byte[]statement)方法，用于解析语句
+//解析过程核心是调用Tokenizer类来分割Token,并根据词法规则将Token包装成具体的Statement类，并返回
+//解析过程，仅根据第一个Token来区分语句类型，并分别处理
+
+/**
+ * 解析输入的字节流，根据不同的标记(token)调用不同的解析方法，生成对应的语句对象
+ */
 public class Parser {
     public static Object Parse(byte[] statement) throws Exception {
-        Tokenizer tokenizer = new Tokenizer(statement);
-        String token = tokenizer.peek();
-        tokenizer.pop();
+        Tokenizer tokenizer = new Tokenizer(statement);//创建一个Tokenizer对象，用于获取标记
+        String token = tokenizer.peek();//读取下一个标记
+        tokenizer.pop();//跳过这个标记
 
-        Object stat = null;
-        Exception statErr = null;
+        Object stat = null;//用于存储生成的语句对象
+        Exception statErr = null;//用于存储错误信息
         try {
+            //根据标记的值，调用对应的解析方法
             switch (token) {
                 case "begin":
                     stat = parseBegin(tokenizer);
@@ -47,15 +57,15 @@ public class Parser {
                     stat = parseShow(tokenizer);
                     break;
                 default:
-                    throw Error.InvalidCommandException;
+                    throw Error.InvalidCommandException;// 如果标记的值不符合预期，抛出异常
             }
         } catch (Exception e) {
-            statErr = e;
+            statErr = e;// 如果在解析过程中出现错误，保存错误信息
         }
 
         try {
-            String next = tokenizer.peek();
-            if (!"".equals(next)) {
+            String next = tokenizer.peek(); // 获取下一个标记
+            if (!"".equals(next)) {     // 如果还有未处理的标记，那么抛出异常
                 byte[] errStat = tokenizer.errStat();
                 statErr = new RuntimeException("Invalid statement: " + new String(errStat));
             }
@@ -64,10 +74,10 @@ public class Parser {
             byte[] errStat = tokenizer.errStat();
             statErr = new RuntimeException("Invalid statement: " + new String(errStat));
         }
-        if (statErr != null) {
+        if (statErr != null) {// 如果存在错误，抛出异常
             throw statErr;
         }
-        return stat;
+        return stat;// 返回生成的语句对象
     }
 
     private static Show parseShow(Tokenizer tokenizer) throws Exception {
