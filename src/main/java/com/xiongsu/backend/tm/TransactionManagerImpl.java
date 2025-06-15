@@ -74,6 +74,8 @@ public class TransactionManagerImpl implements TransactionManager{
         return LEN_XID_HEADER_LENGTE + (xid-1)*XID_FIELD_SIZE;
     }
 
+
+    //begin() 方法通过 ReentrantLock 锁来保证事务ID的分配和初始状态写入是原子操作，防止多线程并发创建事务时产生冲突（比如生成了相同的XID）。
     // 开始一个事务，并返回XID
     public long begin() {
         // 锁定计数器，防止并发问题
@@ -81,10 +83,14 @@ public class TransactionManagerImpl implements TransactionManager{
         try {
             // xidCounter是当前事务的计数器，每开始一个新的事务，就将其加1
             long xid = xidCounter + 1;
-            // 调用updateXID方法，将新的事务ID和事务状态（这里是活动状态）写入到XID文件中
-            updateXID(xid, FIELD_TRAN_ACTIVE);
-            // 调用incrXIDCounter方法，将事务计数器加1，并更新XID文件的头部信息
-            incrXIDCounter();
+            /**
+             * 调用updateXID方法，将新的事务ID和事务状态（这里是活动状态）写入到XID文件中
+             */
+            updateXID(xid, FIELD_TRAN_ACTIVE);//写入新事务的状态，文件长度增加1字节。
+            /**
+             * 调用incrXIDCounter方法，将事务计数器加1，并更新XID文件的头部信息
+             */
+            incrXIDCounter();//更新文件头的 xidCounter。
             // 返回新的事务ID
             return xid;
         } finally {

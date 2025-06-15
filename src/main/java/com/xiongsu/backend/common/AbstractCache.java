@@ -2,7 +2,9 @@ package com.xiongsu.backend.common;
 
 import com.xiongsu.common.Error;
 
+import java.util.Deque;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -19,12 +21,33 @@ public abstract class AbstractCache<T> {
     private int count = 0;                     //缓存中元素的个数
     private Lock lock;
 
+    //新增的锁分段
+    private final ReentrantLock[] locks;
+    private final int lockCount = 16;
+
+    //新增一个数据结构，存放引用计数为0的key
+    private Deque<Long> evictableKeys;// 使用Deque作为FIFO队列
+
     public AbstractCache(int maxResource) {
         this.maxResource = maxResource;
         cache = new HashMap<>();
         references = new HashMap<>();
         getting = new HashMap<>();
         lock = new ReentrantLock();
+
+        //新增的锁分段
+        locks = new ReentrantLock[lockCount];
+        for (int i = 0; i < lockCount; i++) {
+            locks[i] = new ReentrantLock();
+        }
+        evictableKeys = new LinkedList<>();
+    }
+
+    //新增锁分段的辅助方法
+    private ReentrantLock getLock(long key) {
+        //使用key的哈希值来选择锁
+        // &(lockCount-1)是一个高效的取模操作（当lockCount是2的幂时）
+        return locks[(int)(key & (lockCount-1))];
     }
 
     //从缓存中获取资源
@@ -54,8 +77,18 @@ public abstract class AbstractCache<T> {
 
             //如果资源不在缓存中，尝试获取该资源。如果缓存已满，抛出异常
             if (maxResource > 0 && count == maxResource) {
-                lock.unlock();
-                throw Error.CacheFullException;
+                //优化：当缓存满时，尝试驱逐
+                Long evictKey = evictableKeys.poll();
+                if (evictKey == null) {
+                    lock.unlock();
+                    throw new RuntimeException("Cache is full and no item can be evicted!");
+                }
+//                lock.unlock();
+//                throw Error.CacheFullException;
+                T objToRelease = cache.remove(evictKey);
+                references.remove(evictKey);
+                releaseForCache(objToRelease);
+                count--;
             }
             count ++;
             getting.put(key, true);
@@ -89,16 +122,20 @@ public abstract class AbstractCache<T> {
      */
     protected void release(long key) {
         //获取锁
-        lock.lock();
+        //lock.lock();
+        ReentrantLock currentLock = getLock(key);
+        currentLock.lock();
         try {
             //获取资源的引用计数并-1
             int ref = references.get(key)-1;
             if (ref == 0) { // 若引用计数为0
-                T obj = cache.get(key);//从缓存中获取资源
-                releaseForCache(obj);//处理资源的释放
-                references.remove(key);//从引用计数的映射中移除资源
-                cache.remove(key);//从缓存中移除资源
-                count --;//将缓存中的资源计数-1
+//                T obj = cache.get(key);//从缓存中获取资源
+//                releaseForCache(obj);//处理资源的释放
+//                references.remove(key);//从引用计数的映射中移除资源
+//                cache.remove(key);//从缓存中移除资源
+//                count --;//将缓存中的资源计数-1
+                //引用计数为0，加入可驱逐队列，但是不立即删除
+                evictableKeys.add(key);
             } else {//如果引用计数不为0
                 references.put(key, ref);//更新资源的引用计数
             }

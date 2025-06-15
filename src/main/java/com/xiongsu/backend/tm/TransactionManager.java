@@ -58,6 +58,8 @@ public interface TransactionManager {
         return new TransactionManagerImpl(raf, fc);
     }
 
+    //启动时（通过open方法），构造函数中的 checkXIDCounter 方法会进行一次完整性校验。它读取文件头中的事务总数，并根据这个数量计算出文件的理论长度，然后与文件的实际长度进行比较。
+    // 如果不一致，说明 .xid 文件已损坏，系统会通过 Panic 机制快速失败。
     //这个方法用于在数据库启动时加载现有的事务状态。它确保事务状态文件存在，检查权限，以读写模式打开文件，
     // 然后返回一个管理这个文件的 TransactionManagerImpl 实例。它依赖于文件内已有的数据来恢复事务管理器的状态
     public static TransactionManagerImpl open(String path) {

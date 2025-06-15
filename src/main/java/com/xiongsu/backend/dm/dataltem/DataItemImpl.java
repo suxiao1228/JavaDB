@@ -14,6 +14,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * ValidFlag 1字节，0为合法， 1为非法
  * DataSize 2字节， 标识Data的长度
  */
+
 public class DataItemImpl implements DataItem{
 
     static final int OF_VALID = 0;
@@ -98,7 +99,6 @@ public class DataItemImpl implements DataItem{
     public Page page() {
         return pg;
     }
-
 
     @Override
     public long getUid() {
