@@ -5,6 +5,7 @@ import com.xiongsu.backend.dm.pageCache.PageCache;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+//内存中的页面对象
 public class PageImpl implements Page {
     private int pageNumber;//页面的页号，从1开始计数。
     private byte[] data;//实际包含的字节数据。

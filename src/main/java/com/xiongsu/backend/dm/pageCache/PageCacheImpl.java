@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+//缓存管理器实现
 public class PageCacheImpl extends AbstractCache<Page> implements PageCache {
 
     private static final int MEM_MIN_LIM = 10;
