@@ -45,6 +45,8 @@ public class Recover {
     public static void recover(TransactionManager tm, Logger lg, PageCache pc) {
         System.out.println("Recovering...");
 
+        //阶段一
+        //找出所有再崩溃时尚未完成（Active）的事务，并且确定需要恢复的数据页范围
         lg.rewind();
         int maxPgno = 0;
         while(true) {
@@ -77,6 +79,11 @@ public class Recover {
         System.out.println("Recovery Over.");
     }
 
+
+    //阶段二
+    //重做--Redo
+    //目标: 将数据库恢复到崩溃前的最后一刻的状态。这意味着，不管是已提交的还是未提交的事务，只要它们的操作记录在日志里，就通通给我重做一遍
+
     private static void redoTranscations(TransactionManager tm, Logger lg, PageCache pc) {
         //重置日志文件的读取位置到开始
         lg.rewind();
@@ -93,7 +100,9 @@ public class Recover {
                 //获取事务ID
                 long xid = li.xid;
                 //如果当前事务已经提交，进行重做操作
-                if(!tm.isActive(xid)) {
+                if(!tm.isActive(xid)) {//这里有一个小简化
+                    //幂等性 (Idempotence): doInsertLog 和 doUpdateLog 必须是幂等的。也就是说，即使某个修改已经写盘了，再重做一遍也不会产生错误。
+                    // 这个实现通过直接覆盖指定位置的数据（PageX.recoverUpdate）来保证幂等性。
                     doInsertLog(pc, log, REDO);
                 }
             } else {
@@ -109,6 +118,7 @@ public class Recover {
         }
     }
 
+    //阶段三：撤销
     private static void undoTranscations(TransactionManager tm, Logger lg, PageCache pc) {
         // 创建一个用于存储日志的映射，键为事务ID，值为日志列表
         Map<Long, List<byte[]>> logCache = new HashMap<>();
@@ -152,15 +162,15 @@ public class Recover {
         // 对所有活跃的事务的日志进行倒序撤销
         for(Map.Entry<Long, List<byte[]>> entry : logCache.entrySet()) {
             List<byte[]> logs = entry.getValue();
-            for (int i = logs.size()-1; i >= 0; i --) {
+            for (int i = logs.size()-1; i >= 0; i --) { //！！！！这里是倒序的
                 byte[] log = logs.get(i);
                 // 判断日志记录的类型
                 if(isInsertLog(log)) {
                     // 如果是插入日志，进行撤销插入操作
-                    doInsertLog(pc, log, UNDO);
+                    doInsertLog(pc, log, UNDO);//用逻辑删除撤销
                 } else {
                     // 如果是更新日志，进行撤销更新操作
-                    doUpdateLog(pc, log, UNDO);
+                    doUpdateLog(pc, log, UNDO);// 用oldRaw恢复
                 }
             }
             // 中止当前事务
